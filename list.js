@@ -6,6 +6,11 @@ if (typeof BUCKET_URL == 'undefined') {
   var BUCKET_URL = location.protocol + '//' + location.hostname;
 }
 
+// Used if you have a custom domain name and want to serve files from there
+if (typeof BUCKET_PRETTY_URL == 'undefined') {
+  var BUCKET_PRETTY_URL = location.protocol + '//' + location.hostname;
+}
+
 if (typeof BUCKET_NAME != 'undefined') {
     // if bucket_url does not start with bucket_name,
     // assume path-style url
@@ -63,7 +68,7 @@ function createS3QueryUrl(marker) {
   // buckets but also allow deploying to non-buckets
   //
 
-  var rx = '.*[?&]prefix=' + S3B_ROOT_DIR + '([^&]+)(&.*)?$';
+  var rx = '.*[?&]prefix=' + '([^&]+)(&.*)?$';
   var prefix = '';
   if (S3BL_IGNORE_PATH==false) {
     var prefix = location.pathname.replace(/^\//, S3B_ROOT_DIR);
@@ -134,9 +139,9 @@ function prepareTable(info) {
   content.push(padRight('Last Modified', cols[1]) + '  ' + padRight('Size', cols[2]) + 'Key \n');
   content.push(new Array(cols[0] + cols[1] + cols[2] + 4).join('-') + '\n');
 
-  // add the ../ at the start of the directory listing
-  if (prefix) {
-    var up = prefix.replace(/\/$/, '').split('/').slice(0, -1).concat('').join('/'), // one directory up
+  // add the ../ at the start of the directory listing, unless when at root dir already
+  if (prefix && prefix !== S3B_ROOT_DIR ) {
+    var up = prefix.replace(/\/$/, '').split('/').slice(0, -1).concat('').join('/').replace(S3B_ROOT_DIR, ''), // one directory up
       item = {
         Key: up,
         LastModified: '',
@@ -154,11 +159,14 @@ function prepareTable(info) {
     if (item.Type === 'directory') {
       if (S3BL_IGNORE_PATH) {
         item.href = location.protocol + '//' + location.hostname + location.pathname + '?prefix=' + item.Key;
+        // Get rid of the root dir in the URL if it's a directory
+        item.href = item.href.replace(S3B_ROOT_DIR, '');
       } else {
         item.href = item.keyText;
       }
     } else {
-      item.href = BUCKET_URL + '/' + encodeURIComponent(item.Key);
+      // Use the pretty URL to build href
+      item.href = BUCKET_PRETTY_URL + '/' + encodeURIComponent(item.Key);
       item.href = item.href.replace(/%2F/g, '/');
     }
     var row = renderRow(item, cols);
